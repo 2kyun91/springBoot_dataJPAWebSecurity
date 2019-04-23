@@ -1,10 +1,16 @@
 package com.example.security;
 
+import javax.sql.DataSource;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.authentication.configurers.provisioning.JdbcUserDetailsManagerConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import lombok.extern.java.Log;
 
@@ -28,6 +34,12 @@ import lombok.extern.java.Log;
 @EnableWebSecurity
 public class SecurityConfig extends WebSecurityConfigurerAdapter{
 	
+//	@Autowired
+//	DataSource dataSource;
+	
+	@Autowired
+	CustomUserDetailsService customUserDetailsService;
+	
 	// [주의!] configure() 메소드를 오버라이드하는 경우에는 HttpSecurity 클래스 타입을 파라미터로 처리하는 메소드를 선택해야 한다.
 	@Override
 		protected void configure(HttpSecurity http) throws Exception {
@@ -46,8 +58,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 			// http.formLogin(); 
 			http.formLogin().loginPage("/login");
 			http.exceptionHandling().accessDeniedPage("/accessDenied"); // 접근 제한 페이지 설정.
-//			http.logout().invalidateHttpSession(true); // 세션 무효화, 로그아웃 시 HttpSession의 정보를 무효화 시키고 모든 쿠키를 삭제한다.
+			// http.logout().invalidateHttpSession(true); // 세션 무효화, 로그아웃 시 HttpSession의 정보를 무효화 시키고 모든 쿠키를 삭제한다.
 			http.logout().logoutUrl("/logout").invalidateHttpSession(true); // 로그아웃 페이지를 따로 설정하고 싶은 경우.
+			http.userDetailsService(customUserDetailsService); // 사용자
 		}
 	
 	 /*
@@ -64,11 +77,54 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 	  * UserDetails 인터페이스 타입을 반환한다.
 	  * UserDetails는 '사용자의 계정 정보 + 사용자가 가진 권한 정보'의 묶음이다.
 	  */
-	@Autowired
-	public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
-		log.info("buid Auth global...");
-		
-		// 메모리 기반의 인증 매니저를 생성
-		auth.inMemoryAuthentication().withUser("manager").password("{noop}1111").roles("MANAGER");  
+//	@Autowired
+//	public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
+//		log.info("buid Auth global...");
+//		
+//		// 메모리 기반의 인증 매니저를 생성
+////		auth.inMemoryAuthentication().withUser("manager").password("{noop}1111").roles("MANAGER");
+//		
+//		/*
+//		 * JDBC를 이용한 인증 처리
+//		 * [스프링 시큐리티가 데이터베이스 연동하는 방법]
+//		 * - 1) 직접 SQL 등을 지정해서 처리하는 방법
+//		 * - 2) 기존에 작성된 Repository나 서비스 객체들을 이용해서 별도로 시큐리티 관련 서비스를 개발하는 방법(사용자 정의)
+//		 * 
+//		 * 1)을 이용하기 위해 DataSource 타입의 객체를 주입한다.
+//		 * 사용자 계정 정보와 권한을 체크하는 부분에는 DataSource를 이용하고 SQL을 지정한다.
+//		 * SQL문은 
+//		 * 	1-1) 사용자 계정 정보를 이용해 필요한 정보를 가져오는 SQL과 
+//		 *  1-2) 해당 사용자의 권한을 확인하는 SQL을 작성한다.
+//		 * */
+//		String query1 = "select u_id as username, u_pw as password, 'true' as enabled from tbl1_members where u_id = ?"; // 1-1 
+//		String query2 = "select member as u_id, role_name as role from tbl1_member_roles where member = ?"; // 1-2
+//		
+//		/*
+//		 * jdbcAuthentication() 메소드는 JdbcUserDetailsManagerConfigurer 객체를 반환한다.
+//		 * 이 객체를 이용해 DataSource를 주입하고 SQL문을 파라미터로 전달하는 방식을 이용해 인증 매니저를 생선한다.
+//		 * 핵심은 usersByUsernameQuery(), authoritiesByUsernameQuery() 함수로
+//		 * username을 이용해서 특정한 인증 주체(사용자) 정보를 세팅 (usersByUsernameQuery())하고 
+//		 * username을 이용해서 권한에 대한 정보를 조회한다(authoritiesByUsernameQuery()).
+//		 * 
+//		 * usersByUsernameQuery()를 이용하는 경우 username, password, enabled라는 컬럼의 데이터가 필요한데 실제 테이블의 칼럼명과 다를 경우 'as'를 적용해 동일하게 맞춰준다.
+//		 * enabled 칼럼은 해당 계정이 사용 가능한지를 의미한다.
+//		 * 
+//		 * '/manager'라는 경로로 접근하려면 'ROLE_MANGER'라는 이름의 권한이 필요한데 DB 칼럼 값에는 'ROLE_'이라는 문자열은 없다.
+//		 * 따라서 rolePrefix()라는 메소드를 이용해서 'ROLE_'라는 문자열을 붙여준다.
+//		 * 
+//		 * 스프링 시큐리티 5버전 부터는 passwordEncoder(암호화)를 무조건적으로 설정해주어야 하는데 DB의 값도 암호화된 값이어야한다.
+//		 * 만약 DB의 값이 암호화 된 상태가 아니라면 NoOpPasswordEncoder를 주입해주면 된다.
+//		 * */
+//		
+//		auth.jdbcAuthentication().
+//		dataSource(dataSource).
+//		usersByUsernameQuery(query1).
+//		rolePrefix("ROLE_").
+//		authoritiesByUsernameQuery(query2);
+//	}
+	
+	@Bean
+	public PasswordEncoder noOpPasswordEncoder() {
+		return NoOpPasswordEncoder.getInstance();
 	}
 }

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Thymeleaf3</title>
+	<script src="https://code.jquery.com/jquery-1.12.0.min.js"></script>
+	<!-- 부트스트랩 추가 부분 -->
+	<link rel="stylesheet"
+		href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+		integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+		crossorigin="anonymous">
+
+	<link rel="stylesheet"
+		href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css"
+		integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp"
+		crossorigin="anonymous">
+
+	<script
+		src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
+		integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
+		crossorigin="anonymous"></script>
+</head>
+<body>
+	<h2>Custom Login Page</h2>
+	
+	<div th:if="${param.error != null}">
+		<h2>Invalid Username or password</h2>
+		<h2 th:value="${param.error}"></h2>
+	</div>
+	
+	<div th:if="${param.logout != null}">
+		<h2>로그아웃 상태입니다.</h2>
+	</div>
+	
+	<form method="post">
+		<!-- 
+			스프링 시큐리티는 기본적으로 username과 password라는 이름을 이용하므로 태그의 name 속성값을 마음대로 변경할 수 없다. 
+			<form> 태그의 내부에는 hidden 속성으로 작성된 '_csrf'라는 속성이 존재한다.
+			이 속성은 '사이트 간 요청 위조(Cross-site-request forgery / CSRF / XSRF)'를 방지하기 위한 것으로
+			요청을 보내는 URL에서 서버가 가진 동일한 값과 같은 값을 가지고 데이터를 전송할 때에만 신뢰하기 위한 방법이다.
+			로그인 할 때 CSRF 토큰값을 hidden으로 담아서 넘겨준다.
+		-->
+		<p>
+			<label for="username">아이디</label>
+			<input type="text" id="username" name="username" value="user10" />
+		</p>
+		
+		<p>
+			<label for="password">비밀번호</label>
+			<input type="password" id="password" name="password" value="pw10"/>
+		</p>
+		
+		<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+		<button type="submit" class="btn">로그인</button>
+	</form>
+</body>
+</html>

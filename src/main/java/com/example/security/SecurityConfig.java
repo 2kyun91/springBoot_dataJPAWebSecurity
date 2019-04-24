@@ -11,6 +11,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
+import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
 
 import lombok.extern.java.Log;
 
@@ -34,8 +36,8 @@ import lombok.extern.java.Log;
 @EnableWebSecurity
 public class SecurityConfig extends WebSecurityConfigurerAdapter{
 	
-//	@Autowired
-//	DataSource dataSource;
+	@Autowired
+	DataSource dataSource;
 	
 	@Autowired
 	CustomUserDetailsService customUserDetailsService;
@@ -57,10 +59,6 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 			 * 스프링 시큐리티는 'remember-me' 기능을 사용하기 위해서 2가지 저장 방식을 사용할 수 있다.
 			 *  - Hash-based Token (default)
 			 *  - Persistent Token
-			 * 'remember-me' 쿠키의 생성은 기본적으로 username, 쿠키 만료시간, 패스워드를 base-64 방식으로 인코딩한 것인데
-			 * 이러한 방식은 사용자가 패스워드를 변경하면 정상적인 값이라도 로그인이 될 수 없다는 단점이 있다.
-			 * 이를 해결하기 위해 데이터베이스에 토큰을 보관할 수 있는 테이블을 생성해 처리하는 방식이 좋다.
-			 * 데이터베이스를 이용하는 설정은 JdbcTokenRepositoryImpl 클래스를 이용한다.
 			 * */
 			http.authorizeRequests().antMatchers("/guest/**").permitAll();
 			http.authorizeRequests().antMatchers("/manager/**").hasRole("MANAGER");
@@ -69,7 +67,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 			http.formLogin().loginPage("/login");
 			http.exceptionHandling().accessDeniedPage("/accessDenied"); // 접근 제한 페이지 설정.
 			http.logout().logoutUrl("/logout").invalidateHttpSession(true); // 로그아웃 페이지를 따로 설정하고 싶은 경우.
-			http.rememberMe().key("custom").userDetailsService(customUserDetailsService); // 2) 사용자 정의
+			http.rememberMe().key("custom").
+				 userDetailsService(customUserDetailsService).
+				 tokenRepository(getJDBCRepository()).
+				 tokenValiditySeconds(60*60*24); // 2) 사용자 정의
 		}
 	
 	 /*
@@ -110,7 +111,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 //		
 //		/*
 //		 * jdbcAuthentication() 메소드는 JdbcUserDetailsManagerConfigurer 객체를 반환한다.
-//		 * 이 객체를 이용해 DataSource를 주입하고 SQL문을 파라미터로 전달하는 방식을 이용해 인증 매니저를 생선한다.
+//		 * 이 객체를 이용해 DataSource를 주입하고 SQL문을 파라미터로 전달하는 방식을 이용해 인증 매니저를 생성한다.
 //		 * 핵심은 usersByUsernameQuery(), authoritiesByUsernameQuery() 함수로
 //		 * username을 이용해서 특정한 인증 주체(사용자) 정보를 세팅 (usersByUsernameQuery())하고 
 //		 * username을 이용해서 권한에 대한 정보를 조회한다(authoritiesByUsernameQuery()).
@@ -131,6 +132,19 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 //		rolePrefix("ROLE_").
 //		authoritiesByUsernameQuery(query2);
 //	}
+	
+	/*
+	 * 'remember-me' 쿠키의 생성은 기본적으로 username, 쿠키 만료시간, 패스워드를 base-64 방식으로 인코딩한 것인데
+	 * 이러한 방식은 사용자가 패스워드를 변경하면 정상적인 값이라도 로그인이 될 수 없다는 단점이 있다.
+	 * 이를 해결하기 위해 데이터베이스에 토큰을 보관할 수 있는 테이블을 생성해 처리하는 방식이 좋다.
+	 * 데이터베이스를 이용하는 설정은 PersistentTokenRepository 인터페이스에 구현된 JdbcTokenRepositoryImpl 클래스를 이용한다.
+	 * JdbcTokenRepositoryImpl 클래스는 기본적으로 DataSource가 필요하다.
+	 * */
+	private PersistentTokenRepository getJDBCRepository() {
+		JdbcTokenRepositoryImpl jdbcTokenRepositoryImpl = new JdbcTokenRepositoryImpl();
+		jdbcTokenRepositoryImpl.setDataSource(dataSource);
+		return jdbcTokenRepositoryImpl;
+	}
 	
 	@Bean
 	public PasswordEncoder noOpPasswordEncoder() {

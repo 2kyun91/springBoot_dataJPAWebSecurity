@@ -51,6 +51,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 			 * permitAll()은 모든 사용자가 접근할 수 있다는것을 의미하고 hasRole()은 특정권한을 가진 사람만이 접근할 수 있다는것을 의미한다.
 			 * antMatchers()는 빌더 패턴으로 연속적으로 '.'을 이용하는 방법을 많이 사용한다.
 			 * formLogin()는 기본적으로 <form> 태그가 있는 웹페이지를 만들어 준다.
+			 * logout().invalidateHttpSession(true)는 세션 무효화 기능으로 로그아웃 시 HttpSession의 정보를 무효화 시키고 모든 쿠키를 삭제한다.
+			 * 
+			 * rememberMe().key("")는 로그인 유지 기능으로 쿠키의 값으로 암호화된 값을 전달하므로 암호의 '키(key)'를 지정하여 사용한다.
+			 * 스프링 시큐리티는 'remember-me' 기능을 사용하기 위해서 2가지 저장 방식을 사용할 수 있다.
+			 *  - Hash-based Token (default)
+			 *  - Persistent Token
+			 * 'remember-me' 쿠키의 생성은 기본적으로 username, 쿠키 만료시간, 패스워드를 base-64 방식으로 인코딩한 것인데
+			 * 이러한 방식은 사용자가 패스워드를 변경하면 정상적인 값이라도 로그인이 될 수 없다는 단점이 있다.
+			 * 이를 해결하기 위해 데이터베이스에 토큰을 보관할 수 있는 테이블을 생성해 처리하는 방식이 좋다.
+			 * 데이터베이스를 이용하는 설정은 JdbcTokenRepositoryImpl 클래스를 이용한다.
 			 * */
 			http.authorizeRequests().antMatchers("/guest/**").permitAll();
 			http.authorizeRequests().antMatchers("/manager/**").hasRole("MANAGER");
@@ -58,9 +68,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 			// http.formLogin(); 
 			http.formLogin().loginPage("/login");
 			http.exceptionHandling().accessDeniedPage("/accessDenied"); // 접근 제한 페이지 설정.
-			// http.logout().invalidateHttpSession(true); // 세션 무효화, 로그아웃 시 HttpSession의 정보를 무효화 시키고 모든 쿠키를 삭제한다.
 			http.logout().logoutUrl("/logout").invalidateHttpSession(true); // 로그아웃 페이지를 따로 설정하고 싶은 경우.
-			http.userDetailsService(customUserDetailsService); // 사용자
+			http.rememberMe().key("custom").userDetailsService(customUserDetailsService); // 2) 사용자 정의
 		}
 	
 	 /*

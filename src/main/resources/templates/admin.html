@@ -1,10 +1,42 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<!-- Thymeleaf에서 스프링 시큐리티를 사용하기 위해 버전에 맞는 네임스페이스를 지정한다. -->
+<html xmlns:th="http://www.thymeleaf.org"
+	  xmlns:sec="https://www.thymeleaf.org/thymeleaf-extras-springsecurity5">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <title>Thymeleaf3</title>
 </head>
-<body>
-	<h1>Admin Page for EveryOne!</h1>
-</body>
+	<body>
+		<h1>/admin for admin</h1>
+		<hr />
+		<!-- 네임스페이스는 'sec'로 지정하여 출력이 가능하고 또 다른 방식으로 인라인 스타일은 '.'을 이용해서 처리한다. -->
+		<h3 sec:authentication="name">Spring security username</h3>
+		<h3>[[${#authentication.name}]]</h3>
+		
+		<hr/>
+		
+		<!-- 특정 권한을 가진 사용자에게만 버튼이나 링크가 보이도록 하기 위한 처리는 'authorize-url'을 이용한다. -->
+		<p sec:authorize-url="/admin/aaa">
+			<a href="/admin/aaa">관리자 AAA</a>
+		</p>
+		
+		<p sec:authorize-url="/manager/aaa">
+			<a href="/manager/aaa">매니저 AAA</a>
+		</p>
+		
+		<hr/>
+		
+		<h1 sec:authorize="hasRole('ROLE_ADMIN')">
+			이 내용은 관리자에게만 보입니다.
+		</h1>
+		
+		<hr/>
+		
+		<!-- 데이터베이스 상의 사용자 정보를 사용하는 경우 principal이라는 속성을 이용해야 한다.-->
+		<div th:with="member=${#authentication.principal.member}">
+			<p>[[${member.uId}]]</p>
+			<p>[[${member.uPw}]]</p>
+			<p>[[${member.uName}]]</p>
+		</div>
+	</body>
 </html>

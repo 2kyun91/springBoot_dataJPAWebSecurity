@@ -132,6 +132,12 @@
 		    <artifactId>hibernate-core</artifactId>
 		    <version>5.2.3.Final</version>
 		</dependency>
+		
+		<dependency>
+		    <groupId>org.thymeleaf.extras</groupId>
+		    <artifactId>thymeleaf-extras-springsecurity5</artifactId>
+		    <version>3.0.4.RELEASE</version>
+		</dependency>
 		<!-- 추가부분 끝 -->
 	</dependencies>
 

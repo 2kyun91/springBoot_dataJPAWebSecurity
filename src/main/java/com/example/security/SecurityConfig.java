@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
@@ -30,7 +31,7 @@ import lombok.extern.java.Log;
  * 웹과 관련된 로그인 정보는 기본적으로 HttpSession을 이용한다.
  * HttpSession은 세션 쿠키라는 것을 이용하기 때문에 기존의 로그인 정보를 삭제해야하는 경우 브라우저를 완전히 종료하거나 세션쿠리를 삭제해야한다.
  * 
- * [주의!] 스프링 시큐리티가 적용되면 'POST' 방식으로 보내는 모든 데이터는 CSRF 토큰값이 필요하는 점을 명심해야 된다.
+ * [주의!] 스프링 시큐리티가 적용되면 'POST' 방식으로 보내는 '모든' 데이터는 CSRF 토큰값이 필요하는 점을 명심해야 된다.
  * 		   인증 방식 구조 참고 - /img/Spring Security 인증방식 구조.jpg
  * */
 @Log
@@ -75,20 +76,25 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 				 tokenValiditySeconds(60*60*24); // 2) 사용자 정의
 		}
 	
-	 /*
-	  * AuthenticationManagerBuilder를 주입해서 다양한 설정을 생성하여 로그인 인증에 대한 처리를 한다.
-	  * 스프링 시큐리티 버전 5이상 부터는 password 앞에 식별자 정보'{noop}'를 넣어 패스워드 저장 형식을 지켜야한다.
-	  * 
-	  * AuthenticationManagerBuilder를 이용해서 실제로 인증을 처리하는 인증 매니저를 생성한다.
-	  * 여러 종류의 인증 매니저들을 생성할 수 있는데 대표적으로 메모리를 이용하거나 JDBC,LDAP 등을 사용하는 인증 매니저들을 사용할 수 있고
-	  * 각 인증 매니저는 인증이라는 처리를 할 수 있도록 authenticate()라는 메소드를 구현한다.
-	  * 
-	  * 인증 매니저가 사용하는 UserDetailsService는 실제로 인증/인가 정보를 처리하는 주체를 의미한다.
-	  * UserDetailsService 인터페이스는 인증의 주체에 대한 정보를 가져오는 하나의 메소드만이 존재하는데
-	  * 단순히 loadUserByUsername()이라는 메소드만으로 상세정보를 조회하는 용도일뿐 추가적인 작업은 없다.
-	  * UserDetails 인터페이스 타입을 반환한다.
-	  * UserDetails는 '사용자의 계정 정보 + 사용자가 가진 권한 정보'의 묶음이다.
-	  */
+//	@Bean
+//	public PasswordEncoder noOpPasswordEncoder() {
+//		return NoOpPasswordEncoder.getInstance();
+//	}
+//	
+//	 /*
+//	  * AuthenticationManagerBuilder를 주입해서 다양한 설정을 생성하여 로그인 인증에 대한 처리를 한다.
+//	  * 스프링 시큐리티 버전 5이상 부터는 password 앞에 식별자 정보'{noop}'를 넣어 패스워드 저장 형식을 지켜야한다.
+//	  * 
+//	  * AuthenticationManagerBuilder를 이용해서 실제로 인증을 처리하는 인증 매니저를 생성한다.
+//	  * 여러 종류의 인증 매니저들을 생성할 수 있는데 대표적으로 메모리를 이용하거나 JDBC,LDAP 등을 사용하는 인증 매니저들을 사용할 수 있고
+//	  * 각 인증 매니저는 인증이라는 처리를 할 수 있도록 authenticate()라는 메소드를 구현한다.
+//	  * 
+//	  * 인증 매니저가 사용하는 UserDetailsService는 실제로 인증/인가 정보를 처리하는 주체를 의미한다.
+//	  * UserDetailsService 인터페이스는 인증의 주체에 대한 정보를 가져오는 하나의 메소드만이 존재하는데
+//	  * 단순히 loadUserByUsername()이라는 메소드만으로 상세정보를 조회하는 용도일뿐 추가적인 작업은 없다.
+//	  * UserDetails 인터페이스 타입을 반환한다.
+//	  * UserDetails는 '사용자의 계정 정보 + 사용자가 가진 권한 정보'의 묶음이다.
+//	  */
 //	@Autowired
 //	public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
 //		log.info("buid Auth global...");
@@ -134,6 +140,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 //		rolePrefix("ROLE_").
 //		authoritiesByUsernameQuery(query2);
 //	}
+//	
 	
 	/*
 	 * 'remember-me' 쿠키의 생성은 기본적으로 username, 쿠키 만료시간, 패스워드를 base-64 방식으로 인코딩한 것인데
@@ -148,8 +155,28 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter{
 		return jdbcTokenRepositoryImpl;
 	}
 	
+	/*
+	 * [PasswordEncoder를 사용한 패스워드 암호화]
+	 * 스프링 시큐리티 5버전 부터는 passwordEncoder(암호화)를 무조건적으로 설정해주어야 하는데 DB의 값도 암호화된 값이어야한다.
+	 * PasswordEncoder를 적용하는 방식은 다음과 같이 구현한다. 
+	 *  - 1. 구현클래스 작성
+	 *  - 2. 시큐리티 설정 추가
+	 *  - 3. 관련 컨트롤러나 서비스와 연동
+	 * 
+	 * 패스워드 저장시 강력한 암호화 방식은 단방향 해시 함수 방식으로 저장하는것이 가장 바람직하다.
+	 * 여러 방식이 있지만 그중 가장 강력한 방식은  bcrypt 방식이다.
+	 * 
+	 * 다른 서비스에서도 이용되는 경우가 많기 때문에 별도의 빈으로 생성(@Bean으로 스프링 빈으로 컨테이너에 등록)될 수 있도록 처리한다.
+	 * PasswordEncoder를 이용하기 위해서는 인증 매니저가 PasswordEncoder를 이용할 것이라는 것을 명시해야 한다.
+	 * */
 	@Bean
-	public PasswordEncoder noOpPasswordEncoder() {
-		return NoOpPasswordEncoder.getInstance();
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+	
+	public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
+		log.info("build Auth global...");
+		
+		auth.userDetailsService(customUserDetailsService).passwordEncoder(passwordEncoder());
 	}
 }

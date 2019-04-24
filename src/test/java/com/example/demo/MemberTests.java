@@ -1,12 +1,15 @@
 package com.example.demo;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.annotation.Commit;
 import org.springframework.test.context.junit4.SpringRunner;
 
@@ -23,6 +26,9 @@ import lombok.extern.java.Log;
 public class MemberTests {
 	@Autowired
 	private MemberRepository memberRepository;
+	
+	@Autowired
+	PasswordEncoder passwordEncoder;
 	
 //	@Test
 //	public void testInsert() {
@@ -48,9 +54,24 @@ public class MemberTests {
 //		};
 //	}
 	
+//	@Test
+//	public void testRead() {
+//		Optional<Member> result = memberRepository.findById("user1");
+//		result.ifPresent(member -> log.info("member : " + member));
+//	}
+	
 	@Test
-	public void testRead() {
-		Optional<Member> result = memberRepository.findById("user1");
-		result.ifPresent(member -> log.info("member : " + member));
+	public void testUpdateOldMember() {
+		List<String> ids = new ArrayList<>();
+		
+		for (int i = 0; i < 100; i++) {
+			ids.add("user" + i);
+		}
+		
+		memberRepository.findAllById(ids).forEach(member -> {
+			member.setUPw(passwordEncoder.encode(member.getUPw()));
+			
+			memberRepository.save(member);
+		});
 	}
 }
